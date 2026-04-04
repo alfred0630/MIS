@@ -37,6 +37,7 @@ def load_csv(path: Path, **kwargs) -> pd.DataFrame:
         df['日期'] = pd.to_datetime(df['日期'])
         df.set_index('日期', inplace=True)
     return df
+#
 
 
 def main() -> None:
