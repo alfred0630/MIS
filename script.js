@@ -3,39 +3,44 @@ const repoName = "MIS";
 const branch = "main";
 const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/index/`;
 
+
 const allJsonFiles = [
-    { name: "vix", label: "VIX / VIX Signal / TWA00" },
-    { name: "close", label: "Close Price" },
-    { name: "call_oi", label: "Call OI" },
-    { name: "put_oi", label: "Put OI" },
-    { name: "corr", label: "Correlation" },
-    { name: "fi_3ind", label: "Foreign Investment (3 Ind)" },
-    { name: "fi", label: "Foreign Investment" },
-    { name: "fin_devation", label: "Finance Deviation" },
-    { name: "foreign_net", label: "Foreign Net" },
-    { name: "i1", label: "Index 1" },
-    { name: "i2", label: "Index 2" },
-    { name: "law", label: "Law" },
-    { name: "market_deviation", label: "Market Deviation" },
-    { name: "mo_deviation", label: "Monthly Deviation" },
-    { name: "mob", label: "Momentum" },
-    { name: "otc_deviation", label: "OTC Deviation" },
-    { name: "pcr", label: "Put-Call Ratio" },
-    { name: "returns", label: "Returns" },
-    { name: "tech_deviation", label: "Tech Deviation" },
-    { name: "tech_fin_deviation", label: "Tech-Finance Deviation" },
-    { name: "tech_tra_deviation", label: "Tech-Trade Deviation" },
-    { name: "total", label: "Total" },
-    { name: "tra_deviation", label: "Trade Deviation" },
-    { name: "upon_ma", label: "Upper MA" },
-    { name: "upon_ratio", label: "Upper Ratio" },
-    { name: "weight_diff", label: "Weight Difference" }
+    { name: "vix", label: "VIX 指數" },
+
+    { name: "call_oi", label: "台指選買權未沖銷" },
+    { name: "put_oi", label: "台指選賣權未沖銷" },
+    { name: "pcr", label: "PCR 比值 (近月)" },
+
+
+    { name: "fi_3ind", label: "三大產業外資買賣超" },
+    { name: "fi", label: "外資累計買賣超" },
+    { name: "i1", label: "投信累計買賣超" },
+    { name: "i2", label: "自營商累計買賣超" },
+
+
+    { name: "law", label: "法人淨部位" },
+    { name: "mob", label: "散戶淨部位" },
+    { name: "foreign_net", label: "外資期貨淨部位" },
+
+
+    { name: "mo_deviation", label: "上市櫃乖離差" },
+    { name: "tech_fin_deviation", label: "電金乖離差" },
+    { name: "tech_tra_deviation", label: "電傳乖離差" },
+    { name: "tech_deviation", label: "電子乖離率" },
+
+
+    
+    { name: "weight_diff", label: "電子成交比重-市值比重" },
+
+    { name: "upon_ratio", label: "季線上家數比重" },
+    { name: "corr", label: "平均相關係數" },
 ];
 
 const MAX_SELECTED = 4;
-const DEFAULT_SELECTED = ["vix", "close"];
+const DEFAULT_SELECTED = ["vix"];
 const dataCache = new Map();
 const chartInstances = new Map();
+
 
 let selectedCharts = [...DEFAULT_SELECTED];
 let currentRange = "1Y";
