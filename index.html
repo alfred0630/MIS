@@ -3,41 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大盤資訊系統 - 時間序列金融資料視覺化</title>
+    <title>大盤資訊系統 | Financial Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>大盤資訊系統</h1>
-            <p>時間序列金融資料視覺化</p>
-        </header>
-        
-        <div class="layout">
-            <aside id="sidebar" class="sidebar">
-                <h3>圖表選單</h3>
-                <!-- Sidebar items will be inserted here by JavaScript -->
-            </aside>
-            
-            <main>
-                <div class="controls">
-                    <button id="prev-btn" class="btn btn-prev">← 上一頁</button>
-                    <span id="page-info" class="page-info">Page 1 of 7</span>
-                    <button id="next-btn" class="btn btn-next">下一頁 →</button>
-                </div>
-                
-                <div id="charts-container" class="charts-container">
-                    <!-- Charts will be inserted here by JavaScript -->
-                </div>
-            </main>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon"><i class="fas fa-chart-line"></i></span>
+                <span class="logo-text">大盤資訊系統 <small>NTHU Edition</small></span>
+            </div>
+            <div class="nav-meta">Data: GitHub Repo - alfred0630</div>
         </div>
-        
-        <footer>
-            <p>&copy; 2024 大盤資訊系統 | Financial Data Visualization</p>
-        </footer>
+    </nav>
+
+    <div class="app-container">
+        <aside class="control-panel">
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-sliders-h"></i> 系統控制</h3>
+                
+                <div class="control-group">
+                    <label>開始日期</label>
+                    <input type="date" id="start-date" class="input-date">
+                </div>
+                <div class="control-group">
+                    <label>結束日期</label>
+                    <input type="date" id="end-date" class="input-date">
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-list-ul"></i> 選擇因子 <small id="count-info">(0/4)</small></h3>
+                <div id="factor-list" class="factor-list">
+                    </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div id="charts-grid" class="charts-grid">
+                <div class="empty-state">
+                    <i class="fas fa-chart-area"></i>
+                    <p>請從左側選單選擇欲顯示的圖表（最多 4 個）</p>
+                </div>
+            </div>
+        </main>
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 </html>
