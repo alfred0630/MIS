@@ -1,7 +1,10 @@
+console.log("中文版 script.js 已載入", new Date().toISOString());
+alert("新版 script.js 已載入");
 const repoOwner = "alfred0630";
 const repoName = "MIS";
 const branch = "main";
 const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/index/`;
+
 
 
 const allJsonFiles = [
