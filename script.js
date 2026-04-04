@@ -1,35 +1,39 @@
 const repoOwner = 'alfred0630';
-const repoName = '----';
+const repoName = 'MIS';
 const branch = 'main';
 const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${branch}/index/`;
 
-const jsonFiles = [
-    'call_oi.json',
-    'close.json',
-    'corr.json',
-    'fi_3ind.json',
-    'fi.json',
-    'fin_devation.json',
-    'foreign_net.json',
-    'i1.json',
-    'i2.json',
-    'law.json',
-    'market_deviation.json',
-    'mo_deviation.json',
-    'mob.json',
-    'otc_deviation.json',
-    'pcr.json',
-    'put_oi.json',
-    'returns.json',
-    'tech_deviation.json',
-    'tech_fin_deviation.json',
-    'tech_tra_deviation.json',
-    'total.json',
-    'tra_deviation.json',
-    'upon_ma.json',
-    'upon_ratio.json',
-    'weight_diff.json'
+const allJsonFiles = [
+    { name: 'vix', label: 'VIX, VIX Signal & TWA00' },
+    { name: 'close', label: 'Close Price' },
+    { name: 'call_oi', label: 'Call OI' },
+    { name: 'put_oi', label: 'Put OI' },
+    { name: 'corr', label: 'Correlation' },
+    { name: 'fi_3ind', label: 'Foreign Investment (3 Ind)' },
+    { name: 'fi', label: 'Foreign Investment' },
+    { name: 'fin_devation', label: 'Finance Deviation' },
+    { name: 'foreign_net', label: 'Foreign Net' },
+    { name: 'i1', label: 'Index 1' },
+    { name: 'i2', label: 'Index 2' },
+    { name: 'law', label: 'Law' },
+    { name: 'market_deviation', label: 'Market Deviation' },
+    { name: 'mo_deviation', label: 'Monthly Deviation' },
+    { name: 'mob', label: 'Momentum' },
+    { name: 'otc_deviation', label: 'OTC Deviation' },
+    { name: 'pcr', label: 'Put-Call Ratio' },
+    { name: 'returns', label: 'Returns' },
+    { name: 'tech_deviation', label: 'Tech Deviation' },
+    { name: 'tech_fin_deviation', label: 'Tech-Finance Deviation' },
+    { name: 'tech_tra_deviation', label: 'Tech-Trade Deviation' },
+    { name: 'total', label: 'Total' },
+    { name: 'tra_deviation', label: 'Trade Deviation' },
+    { name: 'upon_ma', label: 'Upper MA' },
+    { name: 'upon_ratio', label: 'Upper Ratio' },
+    { name: 'weight_diff', label: 'Weight Difference' }
 ];
+
+let currentPageIndex = 0;
+const chartsPerPage = 4;
 
 async function loadJSON(filename) {
     try {
@@ -37,7 +41,8 @@ async function loadJSON(filename) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return await response.json();
+        const data = await response.json();
+        return data;
     } catch (error) {
         console.error(`Error loading ${filename}:`, error);
         return null;
@@ -56,60 +61,83 @@ function createChartSection(title) {
     return section;
 }
 
-function createChart(canvas, data, title, options = {}) {
-    const ctx = canvas.getContext('2d');
-    const labels = data.map(item => item.date);
-    const datasets = [];
+function createChart(canvas, data, title) {
+    if (!canvas || !data || data.length === 0) return null;
+    
+    try {
+        const ctx = canvas.getContext('2d');
+        const labels = data.map(item => item.date);
+        const datasets = [];
 
-    // Get all keys except 'date'
-    const keys = Object.keys(data[0]).filter(key => key !== 'date');
+        // Get all keys except 'date'
+        const keys = Object.keys(data[0]).filter(key => key !== 'date');
 
-    keys.forEach((key, index) => {
-        const values = data.map(item => item[key]);
-        datasets.push({
-            label: key,
-            data: values,
-            borderColor: `hsl(${index * 360 / keys.length}, 70%, 50%)`,
-            backgroundColor: `hsl(${index * 360 / keys.length}, 70%, 50%, 0.1)`,
-            fill: false,
-            ...options
+        const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#e67e22'];
+        
+        keys.forEach((key, index) => {
+            const values = data.map(item => {
+                const val = item[key];
+                return val !== null && val !== undefined ? val : null;
+            });
+            datasets.push({
+                label: key,
+                data: values,
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '20',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.1,
+                pointRadius: 0,
+                pointHoverRadius: 5
+            });
         });
-    });
 
-    return new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: title
-                },
-                legend: {
-                    display: true
-                }
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
             },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'day'
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: false
                     }
                 },
-                y: {
-                    beginAtZero: false
+                scales: {
+                    x: {
+                        display: true,
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        display: true,
+                        grid: {
+                            color: '#f0f0f0'
+                        }
+                    }
                 }
             }
-        }
-    });
+        });
+        return chart;
+    } catch (error) {
+        console.error(`Error creating chart for ${title}:`, error);
+        return null;
+    }
 }
 
-async function createSpecialChart() {
+async function createSpecialChart(canvas) {
     const [vixData, vixSignalData, twa00Data] = await Promise.all([
         loadJSON('vix.json'),
         loadJSON('vix_signal.json'),
@@ -118,122 +146,203 @@ async function createSpecialChart() {
 
     if (!vixData || !vixSignalData || !twa00Data) {
         console.error('Failed to load special chart data');
-        return;
+        return null;
     }
 
-    const section = createChartSection('VIX, VIX Signal & TWA00 綜合圖表');
-    document.getElementById('charts-container').appendChild(section);
-    const canvas = section.querySelector('canvas');
+    try {
+        const ctx = canvas.getContext('2d');
+        const labels = twa00Data.map(item => item.date);
+        const twa00Values = twa00Data.map(item => item.twa00);
+        const vixValues = vixData.map(item => item.vix);
 
-    const labels = twa00Data.map(item => item.date);
-    const twa00Values = twa00Data.map(item => item.twa00);
-    const vixValues = vixData.map(item => item.vix);
-
-    // Create signal points where vix_signal == 1
-    const signalPoints = [];
-    vixSignalData.forEach(item => {
-        if (item.vix_signal === 1) {
-            const index = labels.indexOf(item.date);
-            if (index !== -1) {
-                signalPoints.push({
-                    x: new Date(item.date),
-                    y: twa00Values[index]
-                });
+        // Create signal points where vix_signal == 1
+        const signalPoints = [];
+        vixSignalData.forEach(item => {
+            if (item.vix_signal === 1) {
+                const index = labels.indexOf(item.date);
+                if (index !== -1) {
+                    signalPoints.push({
+                        x: item.date,
+                        y: twa00Values[index]
+                    });
+                }
             }
-        }
-    });
+        });
 
-    const ctx = canvas.getContext('2d');
-    new Chart(ctx, {
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    type: 'line',
-                    label: 'TWA00',
-                    data: twa00Values,
-                    borderColor: 'blue',
-                    backgroundColor: 'blue',
-                    yAxisID: 'y'
-                },
-                {
-                    type: 'line',
-                    label: 'VIX',
-                    data: vixValues,
-                    borderColor: 'red',
-                    backgroundColor: 'red',
-                    yAxisID: 'y1'
-                },
-                {
-                    type: 'scatter',
-                    label: 'Signal Points',
-                    data: signalPoints,
-                    backgroundColor: 'green',
-                    pointRadius: 5,
-                    yAxisID: 'y'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'VIX, VIX Signal & TWA00 綜合圖表'
-                },
-                legend: {
-                    display: true
-                }
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'day'
-                    }
-                },
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'TWA00'
-                    }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'VIX'
+        const chart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'TWA00',
+                        data: twa00Values.map((v, i) => ({x: labels[i], y: v})),
+                        borderColor: '#3498db',
+                        backgroundColor: '#3498db20',
+                        borderWidth: 2,
+                        yAxisID: 'y',
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        tension: 0.1
                     },
-                    grid: {
-                        drawOnChartArea: false,
+                    {
+                        type: 'line',
+                        label: 'VIX',
+                        data: vixValues.map((v, i) => ({x: labels[i], y: v})),
+                        borderColor: '#e74c3c',
+                        backgroundColor: '#e74c3c20',
+                        borderWidth: 2,
+                        yAxisID: 'y1',
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        tension: 0.1
+                    },
+                    {
+                        type: 'scatter',
+                        label: 'Signal Points',
+                        data: signalPoints,
+                        backgroundColor: '#2ecc71',
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        yAxisID: 'y',
+                        showLine: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'TWA00'
+                        },
+                        grid: {
+                            color: '#f0f0f0'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'VIX'
+                        },
+                        grid: {
+                            display: false
+                        }
                     }
                 }
             }
+        });
+        return chart;
+    } catch (error) {
+        console.error('Error creating special chart:', error);
+        return null;
+    }
+}
+
+async function renderPage(pageIndex) {
+    const chartsContainer = document.getElementById('charts-container');
+    chartsContainer.innerHTML = '';
+
+    const startIdx = pageIndex * chartsPerPage;
+    const endIdx = Math.min(startIdx + chartsPerPage, allJsonFiles.length);
+    const filesToLoad = allJsonFiles.slice(startIdx, endIdx);
+
+    for (const fileObj of filesToLoad) {
+        const section = createChartSection(fileObj.label);
+        chartsContainer.appendChild(section);
+        const canvas = section.querySelector('canvas');
+
+        if (fileObj.name === 'vix') {
+            await createSpecialChart(canvas);
+        } else {
+            const data = await loadJSON(fileObj.name + '.json');
+            if (data) {
+                createChart(canvas, data, fileObj.label);
+            } else {
+                canvas.style.display = 'none';
+                section.innerHTML += '<p style="color: #e74c3c; padding: 1rem;">Failed to load chart data</p>';
+            }
         }
+    }
+
+    updatePaginationButtons();
+}
+
+function updatePaginationButtons() {
+    const totalPages = Math.ceil(allJsonFiles.length / chartsPerPage);
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const pageInfo = document.getElementById('page-info');
+
+    prevBtn.disabled = currentPageIndex === 0;
+    nextBtn.disabled = currentPageIndex === totalPages - 1;
+    pageInfo.textContent = `Page ${currentPageIndex + 1} of ${totalPages}`;
+}
+
+function goToPreviousPage() {
+    if (currentPageIndex > 0) {
+        currentPageIndex--;
+        renderPage(currentPageIndex);
+    }
+}
+
+function goToNextPage() {
+    const totalPages = Math.ceil(allJsonFiles.length / chartsPerPage);
+    if (currentPageIndex < totalPages - 1) {
+        currentPageIndex++;
+        renderPage(currentPageIndex);
+    }
+}
+
+function selectChart(index) {
+    currentPageIndex = Math.floor(index / chartsPerPage);
+    renderPage(currentPageIndex);
+    document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+    document.querySelector(`[data-index="${index}"]`).classList.add('active');
+}
+
+async function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    allJsonFiles.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'sidebar-item';
+        item.textContent = file.label;
+        item.setAttribute('data-index', index);
+        item.onclick = () => selectChart(index);
+        sidebar.appendChild(item);
     });
 }
 
 async function init() {
-    // Create special chart first
-    await createSpecialChart();
-
-    // Create charts for individual files
-    for (const file of jsonFiles) {
-        const data = await loadJSON(file);
-        if (data) {
-            const title = file.replace('.json', '').replace(/_/g, ' ').toUpperCase();
-            const section = createChartSection(title);
-            document.getElementById('charts-container').appendChild(section);
-            const canvas = section.querySelector('canvas');
-            createChart(canvas, data, title);
-        }
-    }
+    await initSidebar();
+    await renderPage(0);
+    
+    // Connect button events
+    document.getElementById('prev-btn').addEventListener('click', goToPreviousPage);
+    document.getElementById('next-btn').addEventListener('click', goToNextPage);
 }
 
 document.addEventListener('DOMContentLoaded', init);

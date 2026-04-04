@@ -5,22 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>大盤資訊系統 - 時間序列金融資料視覺化</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <header>
-        <h1>大盤資訊系統 - 時間序列金融資料視覺化</h1>
-        <p>從 GitHub repo 載入 JSON 資料並展示圖表</p>
-    </header>
-    <main>
-        <div id="charts-container">
-            <!-- Charts will be inserted here by JavaScript -->
+    <div class="container">
+        <header>
+            <h1>大盤資訊系統</h1>
+            <p>時間序列金融資料視覺化</p>
+        </header>
+        
+        <div class="layout">
+            <aside id="sidebar" class="sidebar">
+                <h3>圖表選單</h3>
+                <!-- Sidebar items will be inserted here by JavaScript -->
+            </aside>
+            
+            <main>
+                <div class="controls">
+                    <button id="prev-btn" class="btn btn-prev">← 上一頁</button>
+                    <span id="page-info" class="page-info">Page 1 of 7</span>
+                    <button id="next-btn" class="btn btn-next">下一頁 →</button>
+                </div>
+                
+                <div id="charts-container" class="charts-container">
+                    <!-- Charts will be inserted here by JavaScript -->
+                </div>
+            </main>
         </div>
-    </main>
-    <footer>
-        <p>&copy; 2026 大盤資訊系統</p>
-    </footer>
+        
+        <footer>
+            <p>&copy; 2024 大盤資訊系統 | Financial Data Visualization</p>
+        </footer>
+    </div>
+    
     <script src="script.js"></script>
 </body>
 </html>
