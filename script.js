@@ -41,8 +41,45 @@ async function loadJSON(filename) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
-        return data;
+        const jsonData = await response.json();
+        
+        // Convert from separated index/data format to array of objects
+        if (jsonData.index && Array.isArray(jsonData.index)) {
+            // Handle format: { name: "...", index: [...], data: [...] } or { index: [...], data: {...} }
+            const converted = [];
+            const dataObj = jsonData.data || {};
+            const indices = jsonData.index;
+            
+            if (Array.isArray(dataObj)) {
+                // data is array: simple single-column case
+                indices.forEach((date, idx) => {
+                    converted.push({
+                        date: new Date(date).toISOString().split('T')[0],
+                        [jsonData.name || 'value']: dataObj[idx]
+                    });
+                });
+            } else if (typeof dataObj === 'object') {
+                // data is object with multiple columns
+                indices.forEach((date, idx) => {
+                    const row = { date: new Date(date).toISOString().split('T')[0] };
+                    Object.keys(dataObj).forEach(key => {
+                        if (Array.isArray(dataObj[key])) {
+                            row[key] = dataObj[key][idx];
+                        }
+                    });
+                    converted.push(row);
+                });
+            }
+            return converted;
+        }
+        
+        // Handle standard array format
+        if (Array.isArray(jsonData)) {
+            return jsonData;
+        }
+        
+        console.warn(`Unexpected data format for ${filename}`, jsonData);
+        return null;
     } catch (error) {
         console.error(`Error loading ${filename}:`, error);
         return null;
@@ -151,52 +188,61 @@ async function createSpecialChart(canvas) {
 
     try {
         const ctx = canvas.getContext('2d');
-        const labels = twa00Data.map(item => item.date);
-        const twa00Values = twa00Data.map(item => item.twa00);
-        const vixValues = vixData.map(item => item.vix);
+        const labels = vixData.map(item => item.date);
+        
+        // Extract values from flexible key structure
+        const vixValues = vixData.map(item => {
+            const key = Object.keys(item).find(k => k !== 'date');
+            return item[key];
+        });
+        
+        const twa00Values = twa00Data.map(item => {
+            const key = Object.keys(item).find(k => k !== 'date');
+            return item[key];
+        });
 
         // Create signal points where vix_signal == 1
         const signalPoints = [];
         vixSignalData.forEach(item => {
-            if (item.vix_signal === 1) {
-                const index = labels.indexOf(item.date);
-                if (index !== -1) {
-                    signalPoints.push({
-                        x: item.date,
-                        y: twa00Values[index]
-                    });
-                }
+            const date = item.date;
+            const dateIdx = labels.indexOf(date);
+            const sigKey = Object.keys(item).find(k => k !== 'date');
+            if (dateIdx !== -1 && item[sigKey] === 1) {
+                signalPoints.push({
+                    x: date,
+                    y: twa00Values[dateIdx]
+                });
             }
         });
 
         const chart = new Chart(ctx, {
-            type: 'scatter',
+            type: 'line',
             data: {
                 labels: labels,
                 datasets: [
                     {
-                        type: 'line',
                         label: 'TWA00',
-                        data: twa00Values.map((v, i) => ({x: labels[i], y: v})),
+                        data: twa00Values,
                         borderColor: '#3498db',
                         backgroundColor: '#3498db20',
                         borderWidth: 2,
                         yAxisID: 'y',
                         pointRadius: 0,
                         pointHoverRadius: 5,
-                        tension: 0.1
+                        tension: 0.1,
+                        fill: false
                     },
                     {
-                        type: 'line',
                         label: 'VIX',
-                        data: vixValues.map((v, i) => ({x: labels[i], y: v})),
+                        data: vixValues,
                         borderColor: '#e74c3c',
                         backgroundColor: '#e74c3c20',
                         borderWidth: 2,
                         yAxisID: 'y1',
                         pointRadius: 0,
                         pointHoverRadius: 5,
-                        tension: 0.1
+                        tension: 0.1,
+                        fill: false
                     },
                     {
                         type: 'scatter',
@@ -225,7 +271,7 @@ async function createSpecialChart(canvas) {
                 },
                 scales: {
                     x: {
-                        type: 'linear',
+                        display: true,
                         grid: {
                             display: false
                         }
