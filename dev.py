@@ -127,7 +127,35 @@ def main() -> None:
 
     corr = avg_corr_fast(returns, window=60)
 
+
+    twa00 = data1["加權報酬指數:收盤價"]
+
+
+    vix = data2[["VIX_收盤價"]]
+    twa00 = data1["加權報酬指數:收盤價"]
+
+    tw_returns = data1["加權報酬指數:收盤價"].pct_change().dropna()
+    vix["大盤"] = tw_returns
+    vix["vix_change"] = vix["VIX_收盤價"].pct_change().dropna() 
+    vix.dropna(inplace=True)
+    vix.loc[(vix["大盤"]>0.015)&(vix["vix_change"]>0), "signal"] = 1 
+    vix["signal"].fillna(0, inplace=True)
+    
+
+
+
+
     outputs = {
+
+        #大盤指數相關
+        'twa00': twa00,  # 加權報酬指數收盤價
+
+
+        # VIX 指數相關
+        'vix': vix['VIX_收盤價'],  # VIX 收盤價
+        'vix_signal': vix['signal'],  # VIX 異常上升訊號
+        
+        
 
         # 外資買賣超相關
         'fi': fi,  # 外資累計買賣超
@@ -159,7 +187,7 @@ def main() -> None:
         'total': total,  # 每日有資料的股票數
         'upon_ma': upon_ma,  # 60 日收盤價高於 60 日均線的股票數
 
-        
+
         'upon_ratio': upon_ratio,  # 多頭比例
 
         'corr': corr,  # 60 日平均相關係數
