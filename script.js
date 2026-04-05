@@ -9,6 +9,7 @@ const baseUrl = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${br
 
 const allJsonFiles = [
     { name: "vix", label: "VIX 指數" },
+    { name: "twa00", label: "台灣加權指數" },
 
     { name: "call_oi", label: "台指選買權未沖銷" },
     { name: "put_oi", label: "台指選賣權未沖銷" },
