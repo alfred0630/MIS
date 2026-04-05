@@ -43,6 +43,8 @@ const MAX_SELECTED = 4;
 const DEFAULT_SELECTED = ["vix"];
 const dataCache = new Map();
 const chartInstances = new Map();
+// Map of chartName -> overlay indicator name (or null)
+const chartOverlays = new Map();
 
 
 let selectedCharts = [...DEFAULT_SELECTED];
@@ -350,11 +352,25 @@ function destroyAllCharts() {
 function createChartCard(fileObj, chartCount) {
     const card = document.createElement("article");
     card.className = `chart-card ${getHeightClass(chartCount)}`;
+    card.dataset.chartName = fileObj.name;
+
+    const isVix = fileObj.name === "vix";
+    const currentOverlay = chartOverlays.get(fileObj.name) || null;
+    const overlayMeta = currentOverlay ? allJsonFiles.find(f => f.name === currentOverlay) : null;
+
+    // Build title: label + optional overlay badge
+    const titleHtml = isVix
+        ? `<h3 class="chart-card-title">${fileObj.label}</h3>`
+        : `<h3 class="chart-card-title">
+               ${fileObj.label}
+               ${overlayMeta ? `<span class="overlay-badge">${overlayMeta.label}<button class="overlay-remove-btn" data-chart="${fileObj.name}" title="移除疊加指標">✕</button></span>` : ""}
+               <button class="add-overlay-btn" data-chart="${fileObj.name}" title="疊加第二指標">＋</button>
+           </h3>`;
 
     card.innerHTML = `
         <div class="chart-card-header">
             <div class="chart-card-title-wrap">
-                <h3 class="chart-card-title">${fileObj.label}</h3>
+                ${titleHtml}
                 <div class="chart-card-subtitle">依所選時間區間顯示歷史走勢</div>
             </div>
             <div class="chart-card-tag">${getDisplayRangeText()}</div>
@@ -362,9 +378,60 @@ function createChartCard(fileObj, chartCount) {
         <div class="chart-body">
             <canvas id="chart-canvas-${fileObj.name}"></canvas>
         </div>
+        ${!isVix ? `<div class="overlay-dropdown hidden" id="overlay-dropdown-${fileObj.name}">
+            <div class="overlay-dropdown-title">選擇疊加指標（右軸）</div>
+            <div class="overlay-options">
+                ${allJsonFiles
+                    .filter(f => f.name !== fileObj.name)
+                    .map(f => `<button class="overlay-option-btn ${currentOverlay === f.name ? "selected" : ""}" data-chart="${fileObj.name}" data-overlay="${f.name}">${f.label}</button>`)
+                    .join("")}
+            </div>
+        </div>` : ""}
     `;
+
+    // Bind events after inserting HTML
+    if (!isVix) {
+        const addBtn = card.querySelector(".add-overlay-btn");
+        const dropdown = card.querySelector(`#overlay-dropdown-${fileObj.name}`);
+
+        addBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            // Close all other dropdowns
+            document.querySelectorAll(".overlay-dropdown").forEach(d => {
+                if (d !== dropdown) d.classList.add("hidden");
+            });
+            dropdown.classList.toggle("hidden");
+        });
+
+        card.querySelectorAll(".overlay-option-btn").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const overlayName = btn.dataset.overlay;
+                const chartName = btn.dataset.chart;
+                chartOverlays.set(chartName, overlayName);
+                dropdown.classList.add("hidden");
+                await reRenderSingleChart(chartName);
+            });
+        });
+
+        const removeBtn = card.querySelector(".overlay-remove-btn");
+        if (removeBtn) {
+            removeBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const chartName = removeBtn.dataset.chart;
+                chartOverlays.delete(chartName);
+                await reRenderSingleChart(chartName);
+            });
+        }
+    }
+
     return card;
 }
+
+// Close dropdowns when clicking outside
+document.addEventListener("click", () => {
+    document.querySelectorAll(".overlay-dropdown").forEach(d => d.classList.add("hidden"));
+});
 
 function getHeightClass(chartCount) {
     if (chartCount === 1) return "one-chart";
@@ -492,13 +559,85 @@ function getCommonChartOptions(hasDualAxis = false) {
     };
 }
 
-function createStandardChart(canvas, data) {
+function createStandardChart(canvas, data, overlayData = null, overlayLabel = null) {
     const { labels, datasets } = getStandardDatasets(data);
+
+    // If overlay data provided, add as right-axis dataset
+    if (overlayData && overlayData.length > 0) {
+        const overlayKeys = Object.keys(overlayData[0] || {}).filter(k => k !== "date");
+        // Align overlay data to primary labels
+        const overlayMap = new Map(overlayData.map(row => [row.date, row]));
+        overlayKeys.forEach((key, i) => {
+            const color = getSeriesColor(datasets.length + i);
+            datasets.push({
+                label: overlayLabel ? `${overlayLabel}` : key,
+                data: labels.map(date => {
+                    const row = overlayMap.get(date);
+                    if (!row) return null;
+                    const val = row[key];
+                    return val === null || val === undefined ? null : val;
+                }),
+                borderColor: color,
+                backgroundColor: hexToRgba(color, 0.12),
+                borderWidth: 2,
+                tension: 0.22,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: false,
+                spanGaps: true,
+                yAxisID: "y1"
+            });
+        });
+    }
+
+    const hasDual = overlayData && overlayData.length > 0;
     return new Chart(canvas.getContext("2d"), {
         type: "line",
         data: { labels, datasets },
-        options: getCommonChartOptions(false)
+        options: getCommonChartOptions(hasDual)
     });
+}
+
+async function reRenderSingleChart(chartName) {
+    // Destroy existing chart instance
+    if (chartInstances.has(chartName)) {
+        chartInstances.get(chartName).destroy();
+        chartInstances.delete(chartName);
+    }
+
+    const fileObj = allJsonFiles.find(f => f.name === chartName);
+    if (!fileObj) return;
+
+    // Re-create the card in place
+    const existingCard = document.querySelector(`[data-chart-name="${chartName}"]`);
+    if (!existingCard) return;
+
+    const chartCount = selectedCharts.length;
+    const newCard = createChartCard(fileObj, chartCount);
+    existingCard.replaceWith(newCard);
+
+    const canvas = newCard.querySelector("canvas");
+    try {
+        const rawData = await loadJSON(`${fileObj.name}.json`);
+        if (!rawData || rawData.length === 0) throw new Error("No data");
+        const filteredData = filterDataByDateRange(rawData);
+
+        const overlayName = chartOverlays.get(chartName);
+        let overlayFiltered = null;
+        let overlayLabel = null;
+        if (overlayName) {
+            const overlayMeta = allJsonFiles.find(f => f.name === overlayName);
+            overlayLabel = overlayMeta ? overlayMeta.label : overlayName;
+            const overlayRaw = await loadJSON(`${overlayName}.json`);
+            if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
+        }
+
+        const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
+        chartInstances.set(chartName, chart);
+    } catch (err) {
+        console.error(`Error re-rendering ${chartName}:`, err);
+        newCard.querySelector(".chart-body").innerHTML = `<div class="chart-error">無法顯示圖表資料：${fileObj.label}</div>`;
+    }
 }
 
 async function createSpecialChart(canvas) {
@@ -634,7 +773,17 @@ async function renderCharts() {
                     throw new Error("Selected date range has no data");
                 }
 
-                const chart = createStandardChart(canvas, filteredData);
+                const overlayName = chartOverlays.get(fileObj.name);
+                let overlayFiltered = null;
+                let overlayLabel = null;
+                if (overlayName) {
+                    const overlayMeta = allJsonFiles.find(f => f.name === overlayName);
+                    overlayLabel = overlayMeta ? overlayMeta.label : overlayName;
+                    const overlayRaw = await loadJSON(`${overlayName}.json`);
+                    if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
+                }
+
+                const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
                 chartInstances.set(fileObj.name, chart);
             }
         } catch (error) {
