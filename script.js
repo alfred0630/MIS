@@ -53,6 +53,15 @@ let currentRange = "1Y";
 let customDateMode = false;
 
 function formatDateInputValue(date) {
+    // 使用本地時間而不是 UTC
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function getLocalDateString(date) {
+    // 轉換為本地日期字符串（YYYY-MM-DD）
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
     const dd = String(date.getDate()).padStart(2, "0");
@@ -196,14 +205,16 @@ async function loadJSON(filename) {
 
             if (Array.isArray(dataObj)) {
                 indices.forEach((date, idx) => {
+                    const dateObj = new Date(date);
                     rows.push({
-                        date: new Date(date).toISOString().split("T")[0],
+                        date: getLocalDateString(dateObj),
                         [jsonData.name || "value"]: dataObj[idx]
                     });
                 });
             } else if (typeof dataObj === "object" && dataObj !== null) {
                 indices.forEach((date, idx) => {
-                    const row = { date: new Date(date).toISOString().split("T")[0] };
+                    const dateObj = new Date(date);
+                    const row = { date: getLocalDateString(dateObj) };
                     Object.keys(dataObj).forEach((key) => {
                         if (Array.isArray(dataObj[key])) {
                             row[key] = dataObj[key][idx];
