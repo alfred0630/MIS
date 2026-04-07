@@ -571,7 +571,7 @@ function getCommonChartOptions(hasDualAxis = false) {
     };
 }
 
-function createStandardChart(canvas, data, overlayData = null, overlayLabel = null) {
+function createStandardChart(canvas, data, overlayData = null, overlayLabel = null, chartName = null) {
     const { labels, datasets } = getStandardDatasets(data);
 
     // If overlay data provided, add as right-axis dataset
@@ -603,11 +603,70 @@ function createStandardChart(canvas, data, overlayData = null, overlayLabel = nu
     }
 
     const hasDual = overlayData && overlayData.length > 0;
-    return new Chart(canvas.getContext("2d"), {
+    const options = getCommonChartOptions(hasDual);
+
+    // 為季線上家數比重添加背景填充區域
+    if (chartName === "upon_ratio") {
+        options.plugins.chartBackground = {
+            rects: [
+                {
+                    yMin: 0,
+                    yMax: 0.5,
+                    color: hexToRgba("#ef4444", 0.08)
+                },
+                {
+                    yMin: 0.5,
+                    yMax: 1,
+                    color: hexToRgba("#22a06b", 0.08)
+                }
+            ]
+        };
+
+        if (!options.plugins.annotation) {
+            options.plugins.annotation = {};
+        }
+    }
+
+    const config = {
         type: "line",
         data: { labels, datasets },
-        options: getCommonChartOptions(hasDual)
-    });
+        options: options
+    };
+
+    const chart = new Chart(canvas.getContext("2d"), config);
+
+    // 為季線上家數比重添加背景區域 plugin
+    if (chartName === "upon_ratio") {
+        const chartCanvasCtx = canvas.getContext("2d");
+        const originalDraw = chart.draw.bind(chart);
+        
+        chart.draw = function() {
+            // 先畫背景
+            const chartArea = chart.chartArea;
+            const yScale = chart.scales.y;
+            
+            // 計算 0.5 位置的像素坐標
+            const yMid = yScale.getPixelForValue(0.5);
+            
+            // 清除之前的背景
+            chartCanvasCtx.save();
+            
+            // 下半部分（0-0.5）- 紅色
+            chartCanvasCtx.fillStyle = hexToRgba("#ef4444", 0.08);
+            chartCanvasCtx.fillRect(chartArea.left, yMid, chartArea.width, chartArea.bottom - yMid);
+            
+            // 上半部分（0.5-1）- 綠色
+            chartCanvasCtx.fillStyle = hexToRgba("#22a06b", 0.08);
+            chartCanvasCtx.fillRect(chartArea.left, chartArea.top, chartArea.width, yMid - chartArea.top);
+            
+            chartCanvasCtx.restore();
+            
+            // 再畫圖表
+            originalDraw();
+        };
+    }
+
+    return chart;
 }
 
 async function reRenderSingleChart(chartName) {
@@ -644,7 +703,7 @@ async function reRenderSingleChart(chartName) {
             if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
         }
 
-        const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
+        const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel, chartName);
         chartInstances.set(chartName, chart);
     } catch (err) {
         console.error(`Error re-rendering ${chartName}:`, err);
@@ -795,7 +854,7 @@ async function renderCharts() {
                     if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
                 }
 
-                const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
+                const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel, fileObj.name);
                 chartInstances.set(fileObj.name, chart);
             }
         } catch (error) {
