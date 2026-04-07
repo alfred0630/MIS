@@ -86,6 +86,48 @@ def save_json(obj, filepath: Path) -> None:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
+
+
+def load_series_json(filepath: Path) -> pd.Series:
+    """讀取 frontend JSON 格式的 Series；不存在則回傳空 Series。"""
+    filepath = filepath.with_suffix(".json")
+    if not filepath.exists():
+        return pd.Series(dtype=float)
+
+    with filepath.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    index = pd.to_datetime(payload.get("index", []), errors="coerce")
+    data_dict = payload.get("data", {})
+    if not data_dict:
+        return pd.Series(dtype=float)
+
+    column_name = next(iter(data_dict))
+    values = data_dict[column_name]
+    s = pd.Series(values, index=index, name=column_name, dtype=float)
+    s = s[~s.index.isna()]
+    s = s[~s.index.duplicated(keep="last")].sort_index()
+    return s
+
+
+def merge_recent_series(old_series: pd.Series, new_series: pd.Series) -> pd.Series:
+    """保留舊歷史資料，僅用新資料覆蓋同日期的值。"""
+    if old_series is None or len(old_series) == 0:
+        merged = new_series.copy()
+    else:
+        old_series = old_series.copy()
+        old_series.index = pd.to_datetime(old_series.index)
+        new_series = new_series.copy()
+        new_series.index = pd.to_datetime(new_series.index)
+
+        overlap_index = new_series.index
+        old_series = old_series.drop(index=overlap_index, errors="ignore")
+        merged = pd.concat([old_series, new_series])
+
+    merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+    merged.name = new_series.name
+    return merged
+
 def load_csv(path: Path, **kwargs) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8-sig", **kwargs)
     if "日期" in df.columns:
@@ -176,19 +218,9 @@ def main() -> None:
     call_oi = data3["TXOC1台指選近月:全部未沖銷"].rename("Call OI")
 
     # close.csv 處理
-    close = pd.read_csv(BASE_DIR / "close.csv", encoding="utf-8-sig")
-    new_columns = []
-    for col in close.columns:
-        if "收盤價" in col:
-            date_str = col.replace("收盤價", "")
-            new_columns.append(pd.to_datetime(date_str, format="%Y%m%d"))
-        else:
-            new_columns.append(col)
 
-    close.columns = new_columns
-    close.set_index("股票代號", inplace=True)
-    close = close.T
-    close.index = pd.to_datetime(close.index)
+
+    close = pd.read_csv(DATA_DIR / "close_clean.csv", encoding="utf-8-sig", index_col=0, parse_dates=True)
 
     total = (~close.isna()).sum(axis=1).rename("股票總數")
     upon_ma = (
@@ -197,7 +229,15 @@ def main() -> None:
 
     upon_ratio = (upon_ma / total).rename("季線上家數比重")
     returns = close.pct_change()
-    corr = avg_corr_fast(returns, window=60).rename("平均相關係數")
+
+    # 平均相關係數只重算最近 100 天，但保留舊 JSON 歷史資料並覆蓋最新區間
+    corr_window = 60
+    corr_recent_days = 100
+    corr_input = returns.tail(corr_window + corr_recent_days - 1)
+    corr_recent = avg_corr_fast(corr_input, window=corr_window).rename("平均相關係數")
+
+    old_corr = load_series_json(OUTPUT_DIR / "corr")
+    corr = merge_recent_series(old_corr, corr_recent).rename("平均相關係數")
 
     # 大盤 / VIX
     twa00 = data1["加權報酬指數:收盤價"].rename("TWA00")
