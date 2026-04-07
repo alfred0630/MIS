@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>大盤資訊系統</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <div class="brand-wrap">
+                <div class="brand-row">
+                    <h1 class="brand-title">大盤資訊系統</h1>
+                    <span class="brand-badge">NTHU</span>
+                </div>
+                <p class="brand-subtitle">時間序列金融資料視覺化</p>
+            </div>
+            <div class="topbar-meta">Data: GitHub Raw JSON</div>
+        </header>
+
+        <main class="main-layout">
+            <aside class="sidebar-card">
+                <div class="sidebar-header">
+                    <div class="sidebar-icon">▦</div>
+                    <div>
+                        <h2>系統控制</h2>
+                        <p>最多同時顯示 4 張圖表</p>
+                    </div>
+                </div>
+
+                <section class="control-section">
+                    <label class="section-label">選擇圖表</label>
+                    <div class="selection-tip">
+                        已選擇 <span id="selected-count">0</span> / 4
+                    </div>
+                    <div id="chart-selector" class="chart-selector"></div>
+                </section>
+
+                <section class="control-section">
+                    <label class="section-label">快速時間區間</label>
+                    <div class="preset-buttons" id="preset-buttons">
+                        <button class="preset-btn active" data-range="1Y">1Y</button>
+                        <button class="preset-btn" data-range="3Y">3Y</button>
+                        <button class="preset-btn" data-range="5Y">5Y</button>
+                        <button class="preset-btn" data-range="10Y">10Y</button>
+                        <button class="preset-btn" data-range="ALL">ALL</button>
+                    </div>
+                </section>
+
+                <section class="control-section">
+                    <label class="section-label">自訂時間</label>
+                    <div class="date-grid">
+                        <div class="date-field">
+                            <span>開始日期</span>
+                            <input type="date" id="start-date" />
+                        </div>
+                        <div class="date-field">
+                            <span>結束日期</span>
+                            <input type="date" id="end-date" />
+                        </div>
+                    </div>
+
+                    <div class="date-actions">
+                        <button id="apply-date-btn" class="primary-btn">套用時間</button>
+                        <button id="reset-date-btn" class="secondary-btn">重設</button>
+                    </div>
+                </section>
+
+                <section class="control-section control-note">
+                    <div class="note-title">顯示規則</div>
+                    <ul>
+                        <li>左側勾選要顯示的圖表</li>
+                        <li>最多同時顯示四張</li>
+                        <li>由上到下排列，圖越多每張高度越緊湊</li>
+                        <li>所有圖表會同步套用同一時間區間</li>
+                    </ul>
+                </section>
+            </aside>
+
+            <section class="content-area">
+                <div class="content-summary-card">
+                    <div>
+                        <div class="summary-title">圖表總覽</div>
+                        <div class="summary-subtitle" id="summary-text">
+                            請從左側選擇要顯示的圖表
+                        </div>
+                    </div>
+                    <div class="summary-pill" id="range-pill">1Y</div>
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-icon">📈</div>
+                    <h3>尚未選擇圖表</h3>
+                    <p>請從左側選單勾選最多四張圖表開始瀏覽。</p>
+                </div>
+
+                <div id="charts-container" class="charts-container hidden"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
