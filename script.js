@@ -53,6 +53,15 @@ let currentRange = "1Y";
 let customDateMode = false;
 
 function formatDateInputValue(date) {
+    // 使用本地時間而不是 UTC
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function getLocalDateString(date) {
+    // 轉換為本地日期字符串（YYYY-MM-DD）
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
     const dd = String(date.getDate()).padStart(2, "0");
@@ -196,14 +205,16 @@ async function loadJSON(filename) {
 
             if (Array.isArray(dataObj)) {
                 indices.forEach((date, idx) => {
+                    const dateObj = new Date(date);
                     rows.push({
-                        date: new Date(date).toISOString().split("T")[0],
+                        date: getLocalDateString(dateObj),
                         [jsonData.name || "value"]: dataObj[idx]
                     });
                 });
             } else if (typeof dataObj === "object" && dataObj !== null) {
                 indices.forEach((date, idx) => {
-                    const row = { date: new Date(date).toISOString().split("T")[0] };
+                    const dateObj = new Date(date);
+                    const row = { date: getLocalDateString(dateObj) };
                     Object.keys(dataObj).forEach((key) => {
                         if (Array.isArray(dataObj[key])) {
                             row[key] = dataObj[key][idx];
@@ -560,7 +571,7 @@ function getCommonChartOptions(hasDualAxis = false) {
     };
 }
 
-function createStandardChart(canvas, data, overlayData = null, overlayLabel = null) {
+function createStandardChart(canvas, data, overlayData = null, overlayLabel = null, chartName = null) {
     const { labels, datasets } = getStandardDatasets(data);
 
     // If overlay data provided, add as right-axis dataset
@@ -592,11 +603,70 @@ function createStandardChart(canvas, data, overlayData = null, overlayLabel = nu
     }
 
     const hasDual = overlayData && overlayData.length > 0;
-    return new Chart(canvas.getContext("2d"), {
+    const options = getCommonChartOptions(hasDual);
+
+    // 為季線上家數比重添加背景填充區域
+    if (chartName === "upon_ratio") {
+        options.plugins.chartBackground = {
+            rects: [
+                {
+                    yMin: 0,
+                    yMax: 0.5,
+                    color: hexToRgba("#ef4444", 0.08)
+                },
+                {
+                    yMin: 0.5,
+                    yMax: 1,
+                    color: hexToRgba("#22a06b", 0.08)
+                }
+            ]
+        };
+
+        if (!options.plugins.annotation) {
+            options.plugins.annotation = {};
+        }
+    }
+
+    const config = {
         type: "line",
         data: { labels, datasets },
-        options: getCommonChartOptions(hasDual)
-    });
+        options: options
+    };
+
+    const chart = new Chart(canvas.getContext("2d"), config);
+
+    // 為季線上家數比重添加背景區域 plugin
+    if (chartName === "upon_ratio") {
+        const chartCanvasCtx = canvas.getContext("2d");
+        const originalDraw = chart.draw.bind(chart);
+        
+        chart.draw = function() {
+            // 先畫背景
+            const chartArea = chart.chartArea;
+            const yScale = chart.scales.y;
+            
+            // 計算 0.5 位置的像素坐標
+            const yMid = yScale.getPixelForValue(0.5);
+            
+            // 清除之前的背景
+            chartCanvasCtx.save();
+            
+            // 下半部分（0-0.5）- 紅色
+            chartCanvasCtx.fillStyle = hexToRgba("#ef4444", 0.08);
+            chartCanvasCtx.fillRect(chartArea.left, yMid, chartArea.width, chartArea.bottom - yMid);
+            
+            // 上半部分（0.5-1）- 綠色
+            chartCanvasCtx.fillStyle = hexToRgba("#22a06b", 0.08);
+            chartCanvasCtx.fillRect(chartArea.left, chartArea.top, chartArea.width, yMid - chartArea.top);
+            
+            chartCanvasCtx.restore();
+            
+            // 再畫圖表
+            originalDraw();
+        };
+    }
+
+    return chart;
 }
 
 async function reRenderSingleChart(chartName) {
@@ -633,7 +703,7 @@ async function reRenderSingleChart(chartName) {
             if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
         }
 
-        const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
+        const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel, chartName);
         chartInstances.set(chartName, chart);
     } catch (err) {
         console.error(`Error re-rendering ${chartName}:`, err);
@@ -784,7 +854,7 @@ async function renderCharts() {
                     if (overlayRaw) overlayFiltered = filterDataByDateRange(overlayRaw);
                 }
 
-                const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel);
+                const chart = createStandardChart(canvas, filteredData, overlayFiltered, overlayLabel, fileObj.name);
                 chartInstances.set(fileObj.name, chart);
             }
         } catch (error) {
