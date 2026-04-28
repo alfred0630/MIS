@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(git -C \"C:/Users/USER/Desktop/大盤資訊系統\" add index/ script.js)",
+      "Bash(git -C \"C:/Users/USER/Desktop/大盤資訊系統\" status)",
+      "Bash(git *)"
+    ]
+  }
+}
